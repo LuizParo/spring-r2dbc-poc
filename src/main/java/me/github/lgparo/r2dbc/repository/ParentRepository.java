@@ -1,20 +1,21 @@
 package me.github.lgparo.r2dbc.repository;
 
 import lombok.AllArgsConstructor;
+import me.github.lgparo.r2dbc.domain.Child;
 import me.github.lgparo.r2dbc.domain.Parent;
-import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.r2dbc.core.DatabaseClient;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import static org.springframework.data.relational.core.query.Criteria.where;
-import static org.springframework.data.relational.core.query.Query.query;
+import java.util.List;
+import java.util.Map;
+
+import static java.util.stream.Collectors.toList;
 
 @Repository
 @AllArgsConstructor
 public class ParentRepository {
-    private final R2dbcEntityTemplate template;
     private final DatabaseClient databaseClient;
 
     public Mono<Parent> save(Parent parent) {
@@ -29,25 +30,54 @@ public class ParentRepository {
     }
 
     public Mono<Parent> findById(String id) {
-        return template
-                .select(Parent.class)
-                .matching(query(where("id").is(id)))
-                .first();
+        final String sql = "SELECT p.id, p.name, p.age, c.id as child_id, c.name as child_name, c.age as child_age, c.parent_id " +
+                "FROM parent p " +
+                "INNER JOIN child c ON c.parent_id = p.id " +
+                "WHERE p.id = :id";
+
+        return databaseClient
+                .sql(sql)
+                .fetch()
+                .all()
+                .bufferUntilChanged(result -> result.get("id"))
+                .map(this::mapResultsToEntity)
+                .next();
     }
 
     public Flux<Parent> findAll() {
+        final String sql = "SELECT p.id, p.name, p.age, c.id as child_id, c.name as child_name, c.age as child_age, c.parent_id " +
+                "FROM parent p " +
+                "INNER JOIN child c ON c.parent_id = p.id";
+
         return databaseClient
-                .sql("SELECT p.id, p.name, p.age, c.id as child_id, c.name as child_name, c.age as child_age, c.parent_id FROM parent p INNER JOIN child c ON c.parent_id = p.id")
-                .map(row ->
-                        Parent
-                                .builder()
-                                .id(row.get("id", String.class))
-                                .name(row.get("name", String.class))
-                                .age(row.get("age", Integer.class))
-                                .build()
-                )
-                .all();
+                .sql(sql)
+                .fetch()
+                .all()
+                .bufferUntilChanged(result -> result.get("id"))
+                .map(this::mapResultsToEntity);
     }
 
+    private Parent mapResultsToEntity(List<Map<String, Object>> results) {
+        final Parent parent = Parent
+                .builder()
+                .id((String) results.get(0).get("id"))
+                .name((String) results.get(0).get("name"))
+                .age((int) results.get(0).get("age"))
+                .build();
 
+        return parent
+                .toBuilder()
+                .children(
+                        results.stream()
+                                .map(childrenResult -> Child
+                                        .builder()
+                                        .id((String) childrenResult.get("child_id"))
+                                        .name((String) childrenResult.get("child_name"))
+                                        .age((int) childrenResult.get("child_age"))
+                                        .parent(parent)
+                                        .build())
+                                .collect(toList())
+                )
+                .build();
+    }
 }

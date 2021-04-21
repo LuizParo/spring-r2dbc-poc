@@ -8,18 +8,11 @@ import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.Collection;
-
 @Repository
 @AllArgsConstructor
 public class ChildRepository {
     private final DatabaseClient databaseClient;
     private final R2dbcEntityTemplate template;
-
-    public Flux<Child> save(Collection<Child> children) {
-//        return template.insert(children);
-        return null;
-    }
 
     public Mono<Child> save(Child child) {
         return databaseClient
