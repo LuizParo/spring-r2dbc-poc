@@ -1,0 +1,13 @@
+CREATE TABLE parent (
+    id VARCHAR(36) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    age INTEGER NOT NULL
+);
+
+CREATE TABLE child (
+    id VARCHAR(36) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    age INTEGER NOT NULL,
+    parent_id VARCHAR(36) NOT NULL,
+    CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES parent(id)
+);
