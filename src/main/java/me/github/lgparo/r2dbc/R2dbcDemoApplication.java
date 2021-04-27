@@ -3,17 +3,19 @@ package me.github.lgparo.r2dbc;
 import lombok.extern.slf4j.Slf4j;
 import me.github.lgparo.r2dbc.domain.Child;
 import me.github.lgparo.r2dbc.domain.Parent;
-import me.github.lgparo.r2dbc.repository.ChildRepository;
 import me.github.lgparo.r2dbc.service.ParentService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
 
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
 @SpringBootApplication
+@EnableTransactionManagement
 public class R2dbcDemoApplication {
 
 	public static void main(String[] args) {
@@ -21,7 +23,7 @@ public class R2dbcDemoApplication {
 	}
 
 	@Bean
-	public CommandLineRunner demo(ParentService parentService, ChildRepository childRepository) {
+	public CommandLineRunner demo(ParentService parentService) {
 		return args -> {
 			final Parent parent1 = Parent
 					.builder()
@@ -29,13 +31,6 @@ public class R2dbcDemoApplication {
 					.name("parent1")
 					.age(40)
 					.build();
-
-//			final Parent parent2 = Parent
-//					.builder()
-//					.id(UUID.randomUUID().toString())
-//					.name("parent2")
-//					.age(40)
-//					.build();
 
 			final Child child1 = Child
 					.builder()
@@ -53,24 +48,13 @@ public class R2dbcDemoApplication {
 					.parent(parent1)
 					.build();
 
-//			final Child child3 = Child
-//					.builder()
-//					.id("789")
-//					.name("child3")
-//					.parent(parent2)
-//					.age(10)
-//					.build();
-
 			parentService
-					.save(parent1)
-					.block();
-
-			childRepository
-					.save(child1)
-					.block();
-
-			childRepository
-					.save(child2)
+					.save(
+							parent1
+									.toBuilder()
+									.children(List.of(child1, child2))
+									.build()
+					)
 					.block();
 
 			parentService

@@ -20,10 +20,10 @@ public class ParentRepository {
 
     public Mono<Parent> save(Parent parent) {
         return databaseClient
-                .sql("INSERT INTO parent (id, name, age) VALUES ($1, $2, $3)")
-                .bind("$1", parent.getId())
-                .bind("$2", parent.getName())
-                .bind("$3", parent.getAge())
+                .sql("INSERT INTO parent (id, name, age) VALUES (:id, :name, :age)")
+                .bind("id", parent.getId())
+                .bind("name", parent.getName())
+                .bind("age", parent.getAge())
                 .fetch()
                 .rowsUpdated()
                 .thenReturn(parent);
@@ -32,11 +32,13 @@ public class ParentRepository {
     public Mono<Parent> findById(String id) {
         final String sql = "SELECT p.id, p.name, p.age, c.id as child_id, c.name as child_name, c.age as child_age, c.parent_id " +
                 "FROM parent p " +
-                "INNER JOIN child c ON c.parent_id = p.id " +
-                "WHERE p.id = :id";
+                "LEFT JOIN child c ON c.parent_id = p.id " +
+                "WHERE p.id = :id " +
+                "ORDER BY c.id";
 
         return databaseClient
                 .sql(sql)
+                .bind("id", id)
                 .fetch()
                 .all()
                 .bufferUntilChanged(result -> result.get("id"))
@@ -47,7 +49,8 @@ public class ParentRepository {
     public Flux<Parent> findAll() {
         final String sql = "SELECT p.id, p.name, p.age, c.id as child_id, c.name as child_name, c.age as child_age, c.parent_id " +
                 "FROM parent p " +
-                "INNER JOIN child c ON c.parent_id = p.id";
+                "LEFT JOIN child c ON c.parent_id = p.id " +
+                "ORDER BY p.id, c.id";
 
         return databaseClient
                 .sql(sql)
@@ -69,6 +72,7 @@ public class ParentRepository {
                 .toBuilder()
                 .children(
                         results.stream()
+                                .filter(childrenResult -> childrenResult.get("child_id") != null)
                                 .map(childrenResult -> Child
                                         .builder()
                                         .id((String) childrenResult.get("child_id"))
